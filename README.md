@@ -2,6 +2,12 @@
 
 MBPPrice用來抓取二手Macbook Pro的價格和相關資訊
 
+## Setup
+
+```bash
+pip install mbpprice
+```
+
 ## Utility
 
 ```bash
