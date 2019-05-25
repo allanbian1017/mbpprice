@@ -50,6 +50,8 @@ class MBPSearch():
 
                     if valid:
                         results.append(record)
+                        if len(results) >= limit:
+                            return results
 
             page += 1
 
