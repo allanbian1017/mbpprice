@@ -2,6 +2,13 @@
 
 MBPPrice用來抓取二手Macbook Pro的價格和相關資訊
 
+## Utility
+
+```bash
+# 搜尋 PTT 二手 Macbook Pro 資訊
+python3 -m mbpprice search ptt
+```
+
 ## Example
 
 ```python
