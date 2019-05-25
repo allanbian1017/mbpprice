@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='mbpprice',
-    version='0.0.1',
+    version='0.0.2',
     description="second hand macbook pro price in Taiwan.",
     long_description=long_description,
     long_description_content_type="text/markdown",
