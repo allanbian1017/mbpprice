@@ -1,6 +1,7 @@
 # MBPPrice
 
 [![image](https://img.shields.io/pypi/v/mbpprice.svg)](https://pypi.org/project/mbpprice/)
+[![image](https://img.shields.io/pypi/dm/mbpprice.svg)](https://pypi.org/project/mbpprice/)
 [![image](https://img.shields.io/pypi/l/mbpprice.svg)](https://pypi.org/project/mbpprice/)
 
 MBPPrice用來抓取二手Macbook Pro的價格和相關資訊
