@@ -12,11 +12,27 @@ class MBPSearch():
     """
 
     def __init__(self, channel):
-        if channel != 'ptt':
-            msg = 'Channel {} does not support right now'.format(channel)
-            raise Exception(msg)
-
-        self.endpoint = 'https://www.ptt.cc'
+        self.channel = channel
+        self.endpoints = {
+            'ptt': 'https://www.ptt.cc',
+            'ebay': 'https://www.ebay.com'
+        }
+        self.search_url_templates = {
+            'ptt': '{base_url}/bbs/MacShop/search?q=macbook+pro&page={page_num}',
+            'ebay': '{base_url}/sch/i.html?_nkw=macbook+pro&_pgn={page_num}'
+        }
+        self.parsing_methods = {
+            'ptt': {
+                'parse_mbp_data': self._parse_mbp_data_ptt,
+                'get_price': self._get_price_ptt,
+                'get_year': self._get_year_ptt,
+            },
+            'ebay': {
+                'parse_mbp_data': self._parse_mbp_data_ebay,
+                'get_price': self._get_price_ebay,
+                'get_year': self._get_year_ebay,
+            }
+        }
 
     def list(self, limit=10):
         """List MBP data
@@ -27,33 +43,70 @@ class MBPSearch():
         results = []
         page = 0
         while len(results) < limit:
-            content = self.get_content(
-                self.endpoint + '/bbs/MacShop/search?q=macbook+pro&page=' + str(page))
+            base_url = self.endpoints.get(self.channel)
+            if not base_url:
+                raise NotImplementedError(f"Channel {self.channel} is not supported.")
+
+            search_template = self.search_url_templates.get(self.channel)
+            if not search_template:
+                raise NotImplementedError(f"Search URL template for channel {self.channel} not defined.")
+            
+            # Increment page for PTT (0-indexed) vs eBay (1-indexed)
+            page_num_for_url = page + 1 if self.channel == 'ebay' else page
+            
+            search_url = search_template.format(base_url=base_url, page_num=str(page_num_for_url))
+            content = self.get_content(search_url)
 
             if content:
                 doc = pq(content)
 
-                for item in doc('div.r-ent'):
-                    div = pq(item)
-                    node = div('div.title').find('a').attr('href')
-                    url = self.endpoint + node
+                # TODO: This part is PTT specific, need to generalize for eBay
+                if self.channel == 'ptt':
+                    for item in doc('div.r-ent'):
+                        div = pq(item)
+                        node = div('div.title').find('a').attr('href')
+                        if not node: # handle cases where node might be None
+                            continue
+                        url = base_url + node
 
-                    record = self.parse_mbp_data(url)
-                    if record is None:
-                        continue
+                        channel_parsers = self.parsing_methods.get(self.channel)
+                        if not channel_parsers or 'parse_mbp_data' not in channel_parsers:
+                            raise NotImplementedError(f"Parsing for channel {self.channel} is not implemented.")
+                        
+                        parse_mbp_data_func = channel_parsers['parse_mbp_data']
+                        record = parse_mbp_data_func(url)
+                        if record is None:
+                            continue
 
-                    # if value in record is missing then drop this record
-                    valid = True
-                    for key in record:
-                        if not bool(record[key]):
-                            valid = False
+                        # if value in record is missing then drop this record
+                        valid = True
+                        for key in record:
+                            if not bool(record[key]):
+                                valid = False
 
-                    if valid:
-                        results.append(record)
-                        if len(results) >= limit:
-                            return results
+                        if valid:
+                            results.append(record)
+                            if len(results) >= limit:
+                                return results
+                elif self.channel == 'ebay':
+                    # Placeholder for eBay item iteration and parsing
+                    # Since _parse_mbp_data_ebay returns None, this loop effectively does nothing yet
+                    channel_parsers = self.parsing_methods.get(self.channel)
+                    if not channel_parsers or 'parse_mbp_data' not in channel_parsers:
+                        raise NotImplementedError(f"Parsing for channel {self.channel} is not implemented.")
+                    parse_mbp_data_func = channel_parsers['parse_mbp_data']
+                    # This will call _parse_mbp_data_ebay, which currently returns None
+                    # You'll need to implement actual eBay item extraction here later
+                    # For now, this loop won't add any results.
+                    # Example: for item in doc('.s-item'): record = parse_mbp_data_func(pq(item).html())
+                    pass # Explicitly do nothing for ebay's item parsing in this iteration
 
             page += 1
+            # Break if page is too high to prevent infinite loops for channels not returning data
+            if page > limit * 2 and len(results) == 0 : # Heuristic to break
+                 print(f"Breaking search for channel {self.channel} after {page} pages with no results.")
+                 break
+
 
         return results
 
@@ -110,8 +163,8 @@ class MBPSearch():
         target = MBPSearch.search_string(regex, content, group)
         return int(target) if target else 0
 
-    def parse_mbp_data(self, url):
-        """Parse MBP data with given url
+    def _parse_mbp_data_ptt(self, url):
+        """Parse PTT MBP data with given url
 
         Args:
             url (str): MBP data url
@@ -129,8 +182,8 @@ class MBPSearch():
 
         record = {
             'url': url,
-            'price': self.get_price(lines),
-            'year': self.get_year(lines),
+            'price': self._get_price_ptt(lines),
+            'year': self._get_year_ptt(lines),
             'bat_count': self.search_int(
                 r'循環\D*(\d+)',
                 content,
@@ -158,8 +211,8 @@ class MBPSearch():
         }
         return record
 
-    def get_price(self, lines):
-        """Get MBP price
+    def _get_price_ptt(self, lines):
+        """Get PTT MBP price
 
         Args:
             lines (array): MBP detail data split by lines
@@ -174,8 +227,8 @@ class MBPSearch():
 
         return 0
 
-    def get_year(self, lines):
-        """Get MBP year
+    def _get_year_ptt(self, lines):
+        """Get PTT MBP year
 
         Args:
             lines (array): MBP detail data split by lines
@@ -189,4 +242,20 @@ class MBPSearch():
             if not res and year != 0:
                 return year
 
+        return 0
+
+    def _parse_mbp_data_ebay(self, url):
+        """Stub for parsing eBay MBP data."""
+        # Actual eBay parsing logic will be implemented later.
+        # For now, it returns None, so no data will be processed.
+        return None
+
+    def _get_price_ebay(self, lines):
+        """Stub for getting eBay MBP price."""
+        # Actual eBay price extraction logic will be implemented later.
+        return 0
+
+    def _get_year_ebay(self, lines):
+        """Stub for getting eBay MBP year."""
+        # Actual eBay year extraction logic will be implemented later.
         return 0
